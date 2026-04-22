@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DM Badminton</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container text-center mt-5">
+
+  <h1>🏸 DM Badminton</h1>
+  <img src="/img/logo.png" width="120">
+
+  <div class="row mt-5">
+
+    <div class="col-md-3">
+      <a href="/members" class="btn btn-dark w-100 p-4">👤 Thành viên</a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="/session/new" class="btn btn-primary w-100 p-4">➕ Tạo Sheet</a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="/history" class="btn btn-success w-100 p-4">📊 Lịch sử</a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="/upload" class="btn btn-warning w-100 p-4">🎥 Upload</a>
+    </div>
+
+  </div>
+</div>
+
+<div class="container mt-4">
+
+<h3>Chọn thành viên</h3>
+
+<div class="row">
+  <% members.forEach(m => { %>
+    <div class="col-md-3">
+      <label>
+        <input type="checkbox" value="<%= m._id %>" onchange="updateSelected()">
+        <img src="<%= m.avatar %>" width="40">
+        <%= m.name %>
+      </label>
+    </div>
+  <% }) %>
+</div>
+
+<button onclick="createTable()" class="btn btn-primary mt-3">Tạo bảng</button>
+
+<form id="sheetForm" action="/session/save" method="POST">
+<table class="table mt-3">
+  <tbody id="tableBody"></tbody>
+</table>
+
+<button class="btn btn-success">Lưu</button>
+</form>
+
+</div>
+
+<script>
+let selectedMembers = [];
+
+function updateSelected() {
+  selectedMembers = [];
+
+  document.querySelectorAll("input[type=checkbox]:checked")
+    .forEach(cb => {
+      selectedMembers.push(cb.parentElement.innerText.trim());
+    });
+}
+
+function createTable() {
+    if (selectedMembers.length === 0) {
+    alert("⚠️ Bạn chưa chọn thành viên!");
+    return;
+  }
+  let tbody = document.getElementById("tableBody");
+  tbody.innerHTML = "";
+    tbody.innerHTML += `
+      <tr>
+        <td>Tên</td>
+        <td>Số Sẹo</td>
+        <td>Tiền Nước</td>
+        <td>Tiền Sân</td>
+        <td>Tiền cầu</td>
+        <td>Phí phát sinh</td>
+        <td>Tổng</td>
+      </tr>
+    `;
+
+  selectedMembers.forEach(name => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${name}<input type="hidden" name="name[]" value="${name}"></td>
+        <td><input name="seo[]" value="0" oninput="calc()"></td>
+        <td><input name="water[]" value="0" oninput="calc()"></td>
+        <td><input name="court[]" value="0" oninput="calc()"></td>
+        <td><input name="shuttle[]" value="0" oninput="calc()"></td>
+        <td><input name="extra[]" value="0" oninput="calc()"></td>
+        <td class="total">0</td>
+      </tr>
+    `;
+  });
+}
+
+function calc() {
+  let rows = document.querySelectorAll("tr");
+  rows.forEach(r => {
+    let inputs = r.querySelectorAll("input");
+    if (inputs.length > 0) {
+      let total =
+        (inputs[1].value * 5000) +
+        (+inputs[2].value) +
+        (+inputs[3].value) +
+        (+inputs[4].value) +
+        (+inputs[5].value);
+
+      r.querySelector(".total").innerText = total;
+    }
+  });
+}
+</script>
+
+<script>
+document.getElementById("sheetForm").addEventListener("submit", function(e) {
+  const names = document.querySelectorAll("input[name='name[]']");
+  
+  if (names.length === 0) {
+    alert("⚠️ Bạn chưa tạo bảng!");
+    e.preventDefault();
+    return;
+  }
+
+  for (let i = 0; i < names.length; i++) {
+    if (!names[i].value.trim()) {
+      alert("⚠️ Có người chưa có tên!");
+      e.preventDefault();
+      return;
+    }
+  }
+});
+</script>
+
+</body>
+</html>

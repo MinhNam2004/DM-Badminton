@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DM Badminton</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container text-center mt-5">
+
+  <h1>🏸 DM Badminton</h1>
+  <img src="/img/logo.png" width="120">
+
+  <div class="row mt-5">
+
+    <div class="col-md-3">
+      <a href="/members" class="btn btn-dark w-100 p-4">👤 Thành viên</a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="/session/new" class="btn btn-primary w-100 p-4">➕ Tạo Sheet</a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="/history" class="btn btn-success w-100 p-4">📊 Lịch sử</a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="/upload" class="btn btn-warning w-100 p-4">🎥 Upload</a>
+    </div>
+
+  </div>
+</div>
+
+<div class="container mt-4">
+    <form id="uploadForm" enctype="multipart/form-data">
+  <input type="file" name="media" id="videoInput" class="form-control mb-3">
+  <button type="submit" class="btn btn-primary">Upload</button>
+</form>
+
+<div id="uploadStatus" class="mt-2 text-danger"></div>
+
+  <%
+let lastDate = "";
+%>
+
+<% sessions.forEach(s => { %>
+
+  <% let currentDate = new Date(s.date).toLocaleDateString(); %>
+
+  <% if (currentDate !== lastDate) { %>
+
+    <!-- TITLE NGÀY -->
+    <div class="d-flex justify-content-between align-items-center mt-4">
+  <h5><%= currentDate %></h5>
+
+  <button 
+    class="btn btn-danger btn-sm"
+    onclick="deleteDay('<%= new Date(s.date).toISOString().split('T')[0] %>')">
+    🗑️ Xoá ngày
+  </button>
+</div>
+
+    <!-- ROW RIÊNG CHO NGÀY -->
+    <div class="row">
+
+    <% lastDate = currentDate; %>
+  <% } %>
+
+  <% s.videos.forEach(v => { %>
+
+    <div class="col-md-3 mb-3" id="video-<%= v.replace(/\W/g,'') %>">
+
+  <div class="card shadow-sm">
+
+    <% if (v.match(/\.(mp4|webm|ogg)$/)) { %>
+
+      <!-- VIDEO -->
+      <video 
+        class="card-img-top"
+        style="height:200px; object-fit:cover;"
+        onclick="openModal('<%= v %>')">
+        <source src="<%= v %>">
+      </video>
+
+    <% } else { %>
+
+      <!-- IMAGE -->
+      <img 
+        src="<%= v %>" 
+        class="card-img-top"
+        style="height:200px; object-fit:cover;"
+        onclick="openModal('<%= v %>')">
+
+    <% } %>
+
+    <div class="card-body text-center">
+      <button 
+        class="btn btn-danger btn-sm"
+        onclick="deleteVideo('<%= v %>', '<%= s._id %>')">
+        🗑️ Xoá
+      </button>
+    </div>
+
+  </div>
+
+</div>
+
+  <% }) %>
+
+  <% 
+    // nếu session tiếp theo khác ngày thì đóng row
+    let next = sessions[sessions.indexOf(s)+1];
+    if (!next || new Date(next.date).toLocaleDateString() !== currentDate) {
+  %>
+    </div> <!-- đóng row -->
+  <% } %>
+
+<% }) %>
+</div>
+
+<div class="modal fade" id="videoModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-body text-center">
+
+        <img id="modalImg" style="max-width:100%; display:none;">
+        <video id="modalVideo" width="100%" controls style="display:none;"></video>
+
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function deleteDay(date) {
+  if (!confirm("Xoá toàn bộ dữ liệu ngày này?")) return;
+
+  fetch("/session/delete-by-date", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ date })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      alert("✅ Đã xoá ngày!");
+      location.reload();
+    } else {
+      alert("❌ Xoá thất bại");
+    }
+  });
+}
+</script>
+<script>
+function openModal(src) {
+  const video = document.getElementById("modalVideo");
+  const img = document.getElementById("modalImg");
+
+  if (src.match(/\.(mp4|webm|ogg)$/)) {
+    video.src = src;
+    video.style.display = "block";
+    img.style.display = "none";
+  } else {
+    img.src = src;
+    img.style.display = "block";
+    video.style.display = "none";
+  }
+
+  new bootstrap.Modal(document.getElementById("videoModal")).show();
+}
+
+function deleteVideo(path, id) {
+  if (!confirm("Xoá video này?")) return;
+
+  fetch("/video/delete", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ path, id })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      // xoá khỏi UI luôn (không reload)
+      const el = document.getElementById("video-" + path.replace(/\W/g,''));
+      if (el) el.remove();
+    } else {
+      alert("❌ Xoá thất bại");
+    }
+  });
+}
+</script>
+
+<script>
+document.getElementById("uploadForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+
+  const file = document.getElementById("videoInput").files[0];
+  const status = document.getElementById("uploadStatus");
+
+  if (!file) {
+    status.innerText = "⚠️ Bạn chưa chọn file!";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("media", file);
+
+  const xhr = new XMLHttpRequest();
+
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable) {
+      let percent = Math.round((e.loaded / e.total) * 100);
+      status.innerText = "Đang upload: " + percent + "%";
+    }
+  };
+
+  xhr.onload = function() {
+  const res = JSON.parse(xhr.responseText);
+
+  if (res.success) {
+    status.innerText = "✅ Upload thành công!";
+    location.reload();
+  } else {
+    status.innerText = "❌ Upload lỗi!";
+  }
+};
+
+  xhr.open("POST", "/upload", true);
+  xhr.send(formData);
+  
+});
+</script>
+</body>
+</html>
